@@ -8,8 +8,10 @@
 .PARAMETER commands
     String of windbg commands to be run at startup; separate more than one command with semi-colons (optional)
 .EXAMPLE
+    C:\PS> .\attach-process.ps1 -service-name 'Sync Breeze Enterprise' -process-name 'syncbrs' -commands '~* kb; .load pykd; .load narly; g'
+    Most common use case: restart the Sync Breeze Enterprise service, attach to the syncbrs process, and set a breakpoint on all threads, load pykd and narly, and then continue execution.
+.EXAMPLE
     C:\PS> .\attach-process.ps1 -service-name fastbackserver -process-name fastbackserver -commands 'bp fastbackserver!recvfrom'
-
     Restart the fastback server service and then attach to the fastback server process. Addtionally, set a breakpoint as an initial command.
 #>
 [CmdletBinding()]

